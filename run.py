@@ -61,39 +61,57 @@ for word in chatTokens:
         no_stop_words_chat.append(lem.lemmatize(word))
 
 # Create bigrams, pull out those that occur more than three times, and sort the top 100 scores by their frequency.
-# Tag the bigrams
 dickensFeatures = BigramCollocationFinder.from_words(no_stop_words_dickens)
 chatFeatures = BigramCollocationFinder.from_words(no_stop_words_chat)
 
+# Filter out bigrams containing appearing less than 3 times
 dickensFeatures.apply_freq_filter(3)
 chatFeatures.apply_freq_filter(3)
 
-dickensBigrams = dickensFeatures.nbest(bigram_measures.pmi, 150)
-chatBigrams = chatFeatures.nbest(bigram_measures.pmi, 150)
-dickensChiFeatures = dickensFeatures.nbest(bigram_measures.chi_sq, 150)
-chatChiFeatures = chatFeatures.nbest(bigram_measures.chi_sq,150)
+# Of the bigrams that appear the most, select the first 150 using specified measures
+dickensNBBigrams = dickensFeatures.nbest(bigram_measures.pmi, 150)
+chatNBBigrams = chatFeatures.nbest(bigram_measures.pmi, 150)
+dickensChiBigrams = dickensFeatures.nbest(bigram_measures.chi_sq, 150)
+chatChiBigrams = chatFeatures.nbest(bigram_measures.chi_sq,150)
 
+# Tags
 dickens = 'Dickens'
 chat = 'ChatGPT'
 
-trainingData = []
-trainingChiData = []
-trainingBigrams = []
+# featuresets for training:
+# List of tuples that define what the tuple is, whether or not it appears, and the label
+# For example, the bigram ('bread', 'butter') appear in a text written by Dickens, so the tuple is created as:
+# (({"('bread', 'butter')": True}, "Dickens"))
+nbTrainingData = []
+chiTrainingData = []
+#List of bigrams from both datasets. These will be compared to the input data
+nbTrainingBigrams = []
+chiTrainingBigrams = []
 
-for bigram in dickensBigrams:
-    trainingBigrams.append(bigram)
-    trainingData.append(tuple(({str(bigram): True}, dickens)))
-    trainingChiData.append(tuple(({str(bigram): True}, dickens)))
+for bigram in dickensNBBigrams:
+    nbTrainingBigrams.append(bigram)
+    nbTrainingData.append(tuple(({str(bigram): True}, dickens)))
 
-for bigram in chatBigrams:
-    trainingBigrams.append(bigram)
-    trainingData.append(tuple(({str(bigram): True}, chat)))
-    trainingChiData.append(tuple(({str(bigram): True}, chat)))
+for bigram in chatNBBigrams:
+    nbTrainingBigrams.append(bigram)
+    nbTrainingData.append(tuple(({str(bigram): True}, chat)))
 
-classifier = nltk.NaiveBayesClassifier.train(trainingData)
-chiClassifier = nltk.NaiveBayesClassifier.train(trainingChiData)
+for bigram in dickensChiBigrams:
+    chiTrainingBigrams.append(bigram)
+    chiTrainingData.append(tuple(({str(bigram): True}, dickens)))
 
-def classifyText(classifier, inputFile):
+for bigram in chatChiBigrams:
+    chiTrainingBigrams.append(bigram)
+    chiTrainingData.append(tuple(({str(bigram): True}, chat)))
+
+# Create classifier
+nbClassifier = nltk.NaiveBayesClassifier.train(nbTrainingData)
+chiClassifier = nltk.NaiveBayesClassifier.train(chiTrainingData)
+
+# "nb" = Naive Bayes Classifier
+# "chi" = Chi Squared Classifier
+
+def classifyText(classifierType, inputFile):
 
     inputTokens = convertToTokens(inputFile)
 
@@ -104,14 +122,27 @@ def classifyText(classifier, inputFile):
 
     inputFeatures = BigramCollocationFinder.from_words(no_stop_words_input)
 
-    inputBigrams = inputFeatures.nbest(bigram_measures.pmi, 150)
+    inputBigrams = None
+    trainingBigrams = None
+    classifier = None
+    if classifierType == "nb":
+        inputBigrams = inputFeatures.nbest(bigram_measures.pmi, 150)
+        trainingBigrams = nbTrainingBigrams
+        classifier = nbClassifier
+    elif classifierType == "chi":
+        inputBigrams = inputFeatures.nbest(bigram_measures.chi_sq, 150)
+        trainingBigrams = chiTrainingBigrams
+        classifier = chiClassifier
+    else:
+        inputBigrams = inputFeatures.nbest(bigram_measures.pmi, 150)
+        trainingBigrams = nbTrainingBigrams
+        classifier = nbClassifier
 
     #https://stackoverflow.com/questions/20827741/nltk-naivebayesclassifier-training-for-sentiment-analysis
     inputData = {}
 
     for bigram in inputBigrams:
         if bigram in trainingBigrams:
-            #print(str(bigram) + " is in training data")
             inputData[str(bigram)] = True
         else:
             inputData[str(bigram)] = False
@@ -126,13 +157,13 @@ dickensFiles = config.files["dickens"]
 print("NB      | Chi     | File")
 print("--------------------------------------------------")
 for file in chatFiles:
-    nbResult = classifyText(classifier, config.chatDir+file["name"])
-    chiResult = classifyText(chiClassifier, config.chatDir+file["name"])
+    nbResult = classifyText("nb", config.chatDir+file["name"])
+    chiResult = classifyText("chi", config.chatDir+file["name"])
     print(nbResult+" | "+chiResult+"  |"+file["name"])
 print("")
 print("NB      | Chi      | File")
 print("--------------------------------------------------")
 for file in dickensFiles:
-    nbResult = classifyText(classifier, config.dickensDir+file["name"])
-    chiResult = classifyText(chiClassifier, config.dickensDir+file["name"])
+    nbResult = classifyText("nb", config.dickensDir+file["name"])
+    chiResult = classifyText("chi", config.dickensDir+file["name"])
     print(nbResult+" | "+chiResult+"  | "+file["name"])
