@@ -72,12 +72,13 @@ chatFeatures.apply_freq_filter(3)
 dickensNBBigrams = dickensFeatures.nbest(bigram_measures.pmi, 150)
 chatNBBigrams = chatFeatures.nbest(bigram_measures.pmi, 150)
 dickensChiBigrams = dickensFeatures.nbest(bigram_measures.chi_sq, 150)
-chatChiBigrams = chatFeatures.nbest(bigram_measures.chi_sq,150)
+chatChiBigrams = chatFeatures.nbest(bigram_measures.chi_sq, 150)
 
 # Tags
 dickens = 'Dickens'
 chat = 'ChatGPT'
 
+#https://stackoverflow.com/questions/20827741/nltk-naivebayesclassifier-training-for-sentiment-analysis
 # featuresets for training:
 # List of tuples that define what the tuple is, whether or not it appears, and the label
 # For example, the bigram ('bread', 'butter') appear in a text written by Dickens, so the tuple is created as:
@@ -108,11 +109,16 @@ for bigram in chatChiBigrams:
 nbClassifier = nltk.NaiveBayesClassifier.train(nbTrainingData)
 chiClassifier = nltk.NaiveBayesClassifier.train(chiTrainingData)
 
+print("Naive Bayes")
+nbClassifier.show_most_informative_features(10)
+print("Chi Squared")
+chiClassifier.show_most_informative_features(10)
+
 # "nb" = Naive Bayes Classifier
-# "chi" = Chi Squared Classifier
+# "chi" = Chi Squared
 
 def classifyText(classifierType, inputFile):
-
+    # Create bigrams of the input text, similar to how the test data was made
     inputTokens = convertToTokens(inputFile)
 
     no_stop_words_input = []
@@ -122,6 +128,7 @@ def classifyText(classifierType, inputFile):
 
     inputFeatures = BigramCollocationFinder.from_words(no_stop_words_input)
 
+    # Depending on the measure, determine the bigram and classifier
     inputBigrams = None
     trainingBigrams = None
     classifier = None
@@ -138,7 +145,6 @@ def classifyText(classifierType, inputFile):
         trainingBigrams = nbTrainingBigrams
         classifier = nbClassifier
 
-    #https://stackoverflow.com/questions/20827741/nltk-naivebayesclassifier-training-for-sentiment-analysis
     inputData = {}
 
     for bigram in inputBigrams:
@@ -147,7 +153,6 @@ def classifyText(classifierType, inputFile):
         else:
             inputData[str(bigram)] = False
 
-    #classifier.show_most_informative_features(10)
     result = classifier.classify(inputData)
     return result
 
