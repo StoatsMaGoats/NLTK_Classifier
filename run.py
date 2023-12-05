@@ -64,15 +64,22 @@ for word in chatTokens:
 dickensFeatures = BigramCollocationFinder.from_words(no_stop_words_dickens)
 chatFeatures = BigramCollocationFinder.from_words(no_stop_words_chat)
 
-# Filter out bigrams containing appearing less than 3 times
-dickensFeatures.apply_freq_filter(3)
-chatFeatures.apply_freq_filter(3)
+frequency = 3
+numOfBest = 200
+trainRange = int(numOfBest / 2)
 
-# Of the bigrams that appear the most, select the first 150 using specified measures
-dickensNBBigrams = dickensFeatures.nbest(bigram_measures.pmi, 150)
-chatNBBigrams = chatFeatures.nbest(bigram_measures.pmi, 150)
-dickensChiBigrams = dickensFeatures.nbest(bigram_measures.chi_sq, 150)
-chatChiBigrams = chatFeatures.nbest(bigram_measures.chi_sq, 150)
+# Filter out bigrams containing appearing less than 3 times
+dickensFeatures.apply_freq_filter(frequency)
+chatFeatures.apply_freq_filter(frequency)
+
+# Of the bigrams that appear the most, select the first numOfBest using specified measures
+dickensPmiBigrams = dickensFeatures.nbest(bigram_measures.pmi, numOfBest)
+chatPmiBigrams = chatFeatures.nbest(bigram_measures.pmi, numOfBest)
+dickensChiBigrams = dickensFeatures.nbest(bigram_measures.chi_sq, numOfBest)
+chatChiBigrams = chatFeatures.nbest(bigram_measures.chi_sq, numOfBest)
+
+#for i in range(len(dickensPmiBigrams)):
+#    print(str(dickensPmiBigrams[i]) + " <<<pmi | chi>>> "+str(dickensChiBigrams[i]))
 
 # Tags
 dickens = 'Dickens'
@@ -83,19 +90,19 @@ chat = 'ChatGPT'
 # List of tuples that define what the tuple is, whether or not it appears, and the label
 # For example, the bigram ('bread', 'butter') appear in a text written by Dickens, so the tuple is created as:
 # (({"('bread', 'butter')": True}, "Dickens"))
-nbTrainingData = []
+pmiTrainingData = []
 chiTrainingData = []
 #List of bigrams from both datasets. These will be compared to the input data
-nbTrainingBigrams = []
+pmiTrainingBigrams = []
 chiTrainingBigrams = []
 
-for bigram in dickensNBBigrams:
-    nbTrainingBigrams.append(bigram)
-    nbTrainingData.append(tuple(({str(bigram): True}, dickens)))
+for bigram in dickensPmiBigrams:
+    pmiTrainingBigrams.append(bigram)
+    pmiTrainingData.append(tuple(({str(bigram): True}, dickens)))
 
-for bigram in chatNBBigrams:
-    nbTrainingBigrams.append(bigram)
-    nbTrainingData.append(tuple(({str(bigram): True}, chat)))
+for bigram in chatPmiBigrams:
+    pmiTrainingBigrams.append(bigram)
+    pmiTrainingData.append(tuple(({str(bigram): True}, chat)))
 
 for bigram in dickensChiBigrams:
     chiTrainingBigrams.append(bigram)
@@ -105,16 +112,20 @@ for bigram in chatChiBigrams:
     chiTrainingBigrams.append(bigram)
     chiTrainingData.append(tuple(({str(bigram): True}, chat)))
 
+random.shuffle(pmiTrainingData)
+pmiTrain, pmiTest = pmiTrainingData[trainRange:], pmiTrainingData[:trainRange]
+random.shuffle(chiTrainingData)
+chiTrain, chiTest = chiTrainingData[trainRange:], chiTrainingData[:trainRange]
 # Create classifier
-nbClassifier = nltk.NaiveBayesClassifier.train(nbTrainingData)
-chiClassifier = nltk.NaiveBayesClassifier.train(chiTrainingData)
+pmiClassifier = nltk.NaiveBayesClassifier.train(pmiTrain)
+chiClassifier = nltk.NaiveBayesClassifier.train(chiTrain)
 
 print("Naive Bayes")
-nbClassifier.show_most_informative_features(10)
+pmiClassifier.show_most_informative_features(10)
 print("Chi Squared")
 chiClassifier.show_most_informative_features(10)
 
-# "nb" = Naive Bayes Classifier
+# "pmi" = Naive Bayes Classifier
 # "chi" = Chi Squared
 
 def classifyText(classifierType, inputFile):
@@ -132,18 +143,18 @@ def classifyText(classifierType, inputFile):
     inputBigrams = None
     trainingBigrams = None
     classifier = None
-    if classifierType == "nb":
-        inputBigrams = inputFeatures.nbest(bigram_measures.pmi, 150)
-        trainingBigrams = nbTrainingBigrams
-        classifier = nbClassifier
+    if classifierType == "pmi":
+        inputBigrams = inputFeatures.nbest(bigram_measures.pmi, numOfBest)
+        trainingBigrams = pmiTrainingBigrams
+        classifier = pmiClassifier
     elif classifierType == "chi":
-        inputBigrams = inputFeatures.nbest(bigram_measures.chi_sq, 150)
+        inputBigrams = inputFeatures.nbest(bigram_measures.chi_sq, numOfBest)
         trainingBigrams = chiTrainingBigrams
         classifier = chiClassifier
     else:
-        inputBigrams = inputFeatures.nbest(bigram_measures.pmi, 150)
-        trainingBigrams = nbTrainingBigrams
-        classifier = nbClassifier
+        inputBigrams = inputFeatures.nbest(bigram_measures.pmi, numOfBest)
+        trainingBigrams = pmiTrainingBigrams
+        classifier = pmiClassifier
 
     inputData = {}
 
@@ -159,16 +170,16 @@ def classifyText(classifierType, inputFile):
 chatFiles = config.files["chatgpt"]
 dickensFiles = config.files["dickens"]
 
-print("NB      | Chi     | File")
+print("Pmi      | Chi     | File")
 print("--------------------------------------------------")
 for file in chatFiles:
-    nbResult = classifyText("nb", config.chatDir+file["name"])
+    pmiResult = classifyText("pmi", config.chatDir+file["name"])
     chiResult = classifyText("chi", config.chatDir+file["name"])
-    print(nbResult+" | "+chiResult+"  |"+file["name"])
+    print(pmiResult+" | "+chiResult+"  |"+file["name"])
 print("")
-print("NB      | Chi      | File")
+print("Pmi      | Chi      | File")
 print("--------------------------------------------------")
 for file in dickensFiles:
-    nbResult = classifyText("nb", config.dickensDir+file["name"])
+    pmiResult = classifyText("pmi", config.dickensDir+file["name"])
     chiResult = classifyText("chi", config.dickensDir+file["name"])
-    print(nbResult+" | "+chiResult+"  | "+file["name"])
+    print(pmiResult+" | "+chiResult+"  | "+file["name"])
