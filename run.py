@@ -78,8 +78,8 @@ chatPmiBigrams = chatFeatures.nbest(bigram_measures.pmi, numOfBest)
 dickensChiBigrams = dickensFeatures.nbest(bigram_measures.chi_sq, numOfBest)
 chatChiBigrams = chatFeatures.nbest(bigram_measures.chi_sq, numOfBest)
 
-#for i in range(len(dickensPmiBigrams)):
-#    print(str(dickensPmiBigrams[i]) + " <<<pmi | chi>>> "+str(dickensChiBigrams[i]))
+# for i in range(len(dickensPmiBigrams)):
+#     print(str(dickensPmiBigrams[i]) + " <<<pmi | chi>>> "+str(dickensChiBigrams[i]))
 
 # Tags
 dickens = 'Dickens'
@@ -113,14 +113,16 @@ for bigram in chatChiBigrams:
     chiTrainingData.append(tuple(({str(bigram): True}, chat)))
 
 random.shuffle(pmiTrainingData)
-pmiTrain, pmiTest = pmiTrainingData[trainRange:], pmiTrainingData[:trainRange]
+#pmiTrain, pmiTest = pmiTrainingData[trainRange:], pmiTrainingData[:trainRange]
 random.shuffle(chiTrainingData)
-chiTrain, chiTest = chiTrainingData[trainRange:], chiTrainingData[:trainRange]
+#chiTrain, chiTest = chiTrainingData[trainRange:], chiTrainingData[:trainRange]
 # Create classifier
-pmiClassifier = nltk.NaiveBayesClassifier.train(pmiTrain)
-chiClassifier = nltk.NaiveBayesClassifier.train(chiTrain)
+pmiClassifier = nltk.NaiveBayesClassifier.train(pmiTrainingData)
+#print(nltk.classify.accuracy(pmiClassifier, pmiTest))
+chiClassifier = nltk.NaiveBayesClassifier.train(chiTrainingData)
+#print(nltk.classify.accuracy(chiClassifier, chiTest))
 
-print("Naive Bayes")
+print("Pointwise Mutual Information")
 pmiClassifier.show_most_informative_features(10)
 print("Chi Squared")
 chiClassifier.show_most_informative_features(10)
