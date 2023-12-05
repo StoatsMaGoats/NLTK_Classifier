@@ -136,13 +136,14 @@ def classifyText(inputFile):
 chatFiles = config.files["chatgpt"]
 dickensFiles = config.files["dickens"]
 
+print("Chat Files:")
 print("Chi     | File")
 print("--------------------------------------------------")
 for file in chatFiles:
     chiResult = classifyText(config.chatDir+file["name"])
     print(chiResult+"  |"+file["name"])
-print("")
-print("Pmi      | Chi      | File")
+print("\nDickens Files:")
+print("Chi      | File")
 print("--------------------------------------------------")
 for file in dickensFiles:
     chiResult = classifyText(config.dickensDir+file["name"])

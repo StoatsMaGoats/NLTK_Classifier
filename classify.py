@@ -66,7 +66,8 @@ chatFeatures = BigramCollocationFinder.from_words(no_stop_words_chat)
 
 frequency = 3
 numOfBest = 200
-trainRange = int(numOfBest / 2)
+trainRange = int(numOfBest * .3)
+testRange = int(numOfBest * .7)
 
 # Filter out bigrams containing appearing less than 3 times
 dickensFeatures.apply_freq_filter(frequency)
@@ -113,18 +114,20 @@ for bigram in chatChiBigrams:
     chiTrainingData.append(tuple(({str(bigram): True}, chat)))
 
 random.shuffle(pmiTrainingData)
-#pmiTrain, pmiTest = pmiTrainingData[trainRange:], pmiTrainingData[:trainRange]
+pmiTrain, pmiTest = pmiTrainingData[trainRange:], pmiTrainingData[:testRange]
 random.shuffle(chiTrainingData)
-#chiTrain, chiTest = chiTrainingData[trainRange:], chiTrainingData[:trainRange]
+chiTrain, chiTest = chiTrainingData[trainRange:], chiTrainingData[:testRange]
 # Create classifier
-pmiClassifier = nltk.NaiveBayesClassifier.train(pmiTrainingData)
-#print(nltk.classify.accuracy(pmiClassifier, pmiTest))
-chiClassifier = nltk.NaiveBayesClassifier.train(chiTrainingData)
-#print(nltk.classify.accuracy(chiClassifier, chiTest))
+pmiClassifier = nltk.NaiveBayesClassifier.train(pmiTrain)
+pmiAcc = nltk.classify.accuracy(pmiClassifier, pmiTest)
+chiClassifier = nltk.NaiveBayesClassifier.train(chiTrain)
+chiAcc = nltk.classify.accuracy(chiClassifier, chiTest)
 
-print("Pointwise Mutual Information")
+print("------------------------- Pointwise Mutual Information -------------------------")
+print("Accuracy: "+str(pmiAcc))
 pmiClassifier.show_most_informative_features(10)
-print("Chi Squared")
+print("--------------------------------- Chi Squared ---------------------------------")
+print("Accuracy: "+str(chiAcc))
 chiClassifier.show_most_informative_features(10)
 
 # "pmi" = Naive Bayes Classifier
@@ -172,13 +175,14 @@ def classifyText(classifierType, inputFile):
 chatFiles = config.files["chatgpt"]
 dickensFiles = config.files["dickens"]
 
+print("Chat Files:")
 print("Pmi      | Chi     | File")
 print("--------------------------------------------------")
 for file in chatFiles:
     pmiResult = classifyText("pmi", config.chatDir+file["name"])
     chiResult = classifyText("chi", config.chatDir+file["name"])
     print(pmiResult+" | "+chiResult+"  |"+file["name"])
-print("")
+print("\nDickens Files:")
 print("Pmi      | Chi      | File")
 print("--------------------------------------------------")
 for file in dickensFiles:
