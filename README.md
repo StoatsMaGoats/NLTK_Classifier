@@ -75,7 +75,5 @@ Test files are configured in `config.py`.
 
 ## Author
 
-Nicole Lane (Hardy)
 Senior Research Project 2023
-Nicole Lane (Hardy) 
-Senior Research Project — 2023
+Nicole Lane (Hardy)Senior Research Project — 2023
